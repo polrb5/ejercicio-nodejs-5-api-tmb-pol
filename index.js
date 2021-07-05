@@ -1,25 +1,61 @@
 require("dotenv").config();
 const debug = require("debug")("servidor:root");
-const fetch = require("node-fetch");
 const chalk = require("chalk");
 const express = require("express");
 const morgan = require("morgan");
+const { getLineasMetro } = require("./api");
 
 const app = express();
-
-app.use(morgan("dev"));
-app.use(express.static("public"));
-app.use(express.json());
 
 const port = process.env.PORT;
 
 const server = app.listen(port, () => {
-  debug(`Servidor escuchando en el port ${chalk.yellow(port)}`);
+  debug(`Servidor activo en el port ${chalk.yellow(port)}`);
 });
 
 server.on("error", (err) => {
   debug(chalk.red("No se ha podido levantar el servidor"));
   if (err.code === "EADDRINUSE") {
-    debug(chalk.red(`El port ${chalk.bold(port)} está ocupado`));
+    debug(chalk.red(`El port ${chalk.bgRed.white.bold(port)} está ocupado`));
   }
+});
+
+app.use(morgan("dev"));
+app.use(express.static("public"));
+app.use(express.json());
+
+app.get("/despedida", (req, res, next) => {
+  res.send("<h1>Adéu</h1>");
+});
+
+const lineasMetro = async () => {
+  const { features } = await getLineasMetro();
+  const lineasMetro = features.map((linea) => {
+    const {
+      properties: { NOM_LINIA, DESC_LINIA, CODI_LINIA },
+    } = linea;
+
+    return {
+      id: CODI_LINIA,
+      linea: NOM_LINIA,
+      descripcion: DESC_LINIA,
+    };
+  });
+  return lineasMetro;
+};
+
+app.get("/metro/lineas", async (req, res, next) => {
+  try {
+    const lineasMetroTmb = await lineasMetro();
+    res.json(lineasMetroTmb);
+  } catch (error) {
+    if (error.code === "ECONNREFUSED") {
+      error.message = "No hemos podido obtener las lineas";
+    }
+    res.status(500).json({ error: true, mensaje: "Error general" });
+  }
+});
+
+app.use((req, res, next) => {
+  res.status(404).json({ error: true, mensaje: "Recurso no encontrado" });
 });
