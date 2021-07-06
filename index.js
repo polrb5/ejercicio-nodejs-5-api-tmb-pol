@@ -3,7 +3,7 @@ const debug = require("debug")("servidor:root");
 const chalk = require("chalk");
 const express = require("express");
 const morgan = require("morgan");
-const { getLineasMetro } = require("./api");
+const { getLineasMetro, getParadasLinea } = require("./api");
 
 const app = express();
 
@@ -44,6 +44,20 @@ const lineasMetro = async () => {
   return lineas;
 };
 
+const paradasMetro = async (codiLinea) => {
+  const { features } = await getParadasLinea(codiLinea);
+  const paradas = features.map((parada) => {
+    const {
+      properties: { NOM_ESTACIO, CODI_ESTACIO },
+    } = parada;
+    return {
+      id: CODI_ESTACIO,
+      nombre: NOM_ESTACIO,
+    };
+  });
+  return paradas;
+};
+
 app.get("/metro/lineas", async (req, res, next) => {
   try {
     const lineasMetroTmb = await lineasMetro();
@@ -52,16 +66,42 @@ app.get("/metro/lineas", async (req, res, next) => {
     if (error.code === "ECONNREFUSED") {
       error.message = "No hemos podido obtener las lineas";
     }
-    console.log("hola");
-    res.status(500).json({ error: true, mensaje: "Error general" });
+    res.status(500).json({ error: true, mensaje: "error.message" });
+  }
+});
+
+app.get("/metro/linea/:nomLinea", async (req, res, next) => {
+  try {
+    const nom = req.params.nomLinea;
+    const lineas = await lineasMetro();
+    const linea = lineas.find(
+      (linea) => nom.toLowerCase() === linea.linea.toLowerCase()
+    );
+    const paradasObtenidas = await paradasMetro(linea.id);
+    res.json({
+      nombre: linea.nombre,
+      descripcion: linea.descripcion,
+      paradas: paradasObtenidas,
+    });
+  } catch (error) {
+    if (error.code === "ECONNREFUSED") {
+      error.message = "No hemos podido obtener las lineas";
+    }
+    res.status(500).json({ error: true });
   }
 });
 
 app.use((req, res, next) => {
-  if (req.method === "POST" || req.method === "PUT" || req.method === "DELETE")
+  if (
+    req.method === "POST" ||
+    req.method === "PUT" ||
+    req.method === "DELETE"
+  ) {
     res
       .status(403)
       .json({ error: true, mensaje: "Te pensabas que podías jaquearme" });
+  }
+  next();
 });
 
 app.use((req, res, next) => {
