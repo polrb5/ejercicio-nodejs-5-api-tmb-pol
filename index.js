@@ -24,13 +24,13 @@ app.use(morgan("dev"));
 app.use(express.static("public"));
 app.use(express.json());
 
-app.put("/despedida", (req, res, next) => {
+app.get("/despedida", (req, res, next) => {
   res.send("<h1>Adéu</h1>");
 });
 
 const lineasMetro = async () => {
   const { features } = await getLineasMetro();
-  const lineasMetro = features.map((linea) => {
+  const lineas = features.map((linea) => {
     const {
       properties: { NOM_LINIA, DESC_LINIA, CODI_LINIA },
     } = linea;
@@ -41,7 +41,7 @@ const lineasMetro = async () => {
       descripcion: DESC_LINIA,
     };
   });
-  return lineasMetro;
+  return lineas;
 };
 
 app.get("/metro/lineas", async (req, res, next) => {
@@ -52,6 +52,7 @@ app.get("/metro/lineas", async (req, res, next) => {
     if (error.code === "ECONNREFUSED") {
       error.message = "No hemos podido obtener las lineas";
     }
+    console.log("hola");
     res.status(500).json({ error: true, mensaje: "Error general" });
   }
 });
